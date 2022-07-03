@@ -1,0 +1,118 @@
+import win.ui;
+/*DSG{{*/
+mainForm = win.form(text="WechatVideoSniffer";right=959;bottom=591)
+mainForm.add(
+btnClear={cls="button";text="清空列表";left=797;top=540;right=889;bottom=580;z=5};
+btnDown={cls="button";text="下载选中";left=794;top=120;right=885;bottom=157;z=4};
+btnSniffer={cls="button";text="监听";left=794;top=14;right=885;bottom=51;z=1};
+btnStop={cls="button";text="停止";left=794;top=70;right=885;bottom=107;z=2};
+listview={cls="listview";left=17;top=15;right=787;bottom=584;edge=1;z=3}
+)
+/*}}*/
+
+import dotNet
+
+mainForm.listview.insertColumn( "URL",-1 )
+dotNet.reference({
+	"FiddlerCore4" = $"res\FiddlerCore4.dll";
+	"CertMaker" = $"res\CertMaker.dll";
+	"BCMakeCert" = $"res\BCMakeCert.dll";
+	"BasicFormatsForCore" = $"res\BasicFormatsForCore.dll"
+})
+
+var FiddlerCore4 = dotNet.load("FiddlerCore4")
+Fiddler = FiddlerCore4.import("Fiddler")
+
+InstallCertificate = function(){
+	if(!Fiddler.CertMaker.rootCertExists()){
+		if(!Fiddler.CertMaker.createRootCert()){
+			return false;
+		}
+		if(Fiddler.CertMaker.trustRootCert()){
+			return false;
+		}
+	}
+	return true;
+}
+
+UninstallCertificate = function(){
+	if(Fiddler.CertMaker.rootCertExists()){
+		if(!Fiddler.CertMaker.removeFiddlerGeneratedCerts(true)){
+			return false;
+		}
+	}
+	return true;
+}
+
+AttachListening = function(){
+	 Fiddler.FiddlerApplication.BeforeRequest = function(s){
+	 	s.bBufferResponse = false;
+	 	if(string.startWith(s.fullUrl,"https://finder.video.qq.com/251/20302/")){
+	 		mainForm.listview.addItem( {s.fullUrl} )
+	 	}
+	 }
+/*
+	 Fiddler.FiddlerApplication.BeforeResponse = function(s){
+		if(string.startWith(s.fullUrl,"https://finder.video.qq.com")){
+	 		mainForm.listview.addItem( {s.fullUrl} )
+	 	}
+	 }
+*/
+}
+
+StartupFiddlerCore = function(){
+	Fiddler.FiddlerApplication.Startup(9898,Fiddler.FiddlerCoreStartupFlags.Default | Fiddler.FiddlerCoreStartupFlags.RegisterAsSystemProxy)
+}
+
+UninstallFiddler = function(){
+	if(Fiddler.FiddlerApplication.IsStarted()){
+		Fiddler.FiddlerApplication.Shutdown();
+	}
+}
+
+mainForm.btnSniffer.oncommand = function(id,event){
+	InstallCertificate()
+	AttachListening()
+	StartupFiddlerCore()
+	mainForm.btnSniffer.disabled = true
+}
+
+mainForm.btnStop.oncommand = function(id,event){
+	UninstallCertificate()
+	UninstallFiddler()
+	mainForm.btnSniffer.disabled = false
+}
+
+mainForm.btnClear.oncommand = function(id,event){
+	mainForm.listview.clear()
+}
+
+mainForm.btnDown.oncommand = function(id,event){
+	var index = mainForm.listview.selIndex
+	if(index>0){
+		var url = mainForm.listview.getItemText(index,1,1024)
+		mainForm.btnDown.text = "下载中"
+		mainForm.btnDown.disabled = true
+		thread.invokeAndWait(
+			function(url){
+				import inet.httpFile
+				math.randomize()
+				var remoteFile = inet.httpFile( url,"/download/" + string.random(6) + ".mp4" )
+				remoteFile.test()
+				remoteFile.download()
+				remoteFile.close()
+			},url
+		)
+		mainForm.msgbox("下载完成")
+		mainForm.btnDown.text = "下载选中"
+		mainForm.btnDown.disabled = false
+	}
+}
+
+mainForm.onClose = function(hwnd,message,wParam,lParam){
+   	//UninstallCertificate()
+	UninstallFiddler() 
+}
+
+mainForm.show();
+return win.loopMessage();
