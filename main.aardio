@@ -43,11 +43,11 @@ UninstallCertificate = function(){
 	}
 	return true;
 }
-
 AttachListening = function(){
 	 Fiddler.FiddlerApplication.BeforeRequest = function(s){
 	 	s.bBufferResponse = false;
-	 	if(string.startWith(s.fullUrl,"https://finder.video.qq.com/251/20302/")){
+	 
+	 	if(string.find(s.fullUrl,"^https\:\/\/finder<mp>*\.video\.qq\.com\/251\/20302\/")){
 	 		mainForm.listview.addItem( {s.fullUrl} )
 	 	}
 	 }
@@ -61,7 +61,7 @@ AttachListening = function(){
 }
 
 StartupFiddlerCore = function(){
-	Fiddler.FiddlerApplication.Startup(9898,Fiddler.FiddlerCoreStartupFlags.Default | Fiddler.FiddlerCoreStartupFlags.RegisterAsSystemProxy)
+	Fiddler.FiddlerApplication.Startup(9898,Fiddler.FiddlerCoreStartupFlags.Default | Fiddler.FiddlerCoreStartupFlags.RegisterAsSystemProxy | Fiddler.FiddlerCoreStartupFlags.AllowRemoteClients)
 }
 
 UninstallFiddler = function(){
