@@ -3,15 +3,16 @@ import win.ui;
 mainForm = win.form(text="WechatVideoSniffer";right=959;bottom=591)
 mainForm.add(
 btnClear={cls="button";text="清空列表";left=797;top=540;right=889;bottom=580;z=5};
+btnCopyUrl={cls="button";text="复制链接";left=797;top=177;right=889;bottom=211;z=6};
 btnDown={cls="button";text="下载选中";left=794;top=120;right=885;bottom=157;z=4};
 btnSniffer={cls="button";text="监听";left=794;top=14;right=885;bottom=51;z=1};
 btnStop={cls="button";text="停止";left=794;top=70;right=885;bottom=107;z=2};
-listview={cls="listview";left=17;top=15;right=787;bottom=584;edge=1;z=3}
+listview={cls="listview";left=17;top=15;right=787;bottom=584;edge=1;hscroll=1;z=3}
 )
 /*}}*/
 
 import dotNet
-
+import win.clip
 mainForm.listview.insertColumn( "URL",-1 )
 dotNet.reference({
 	"FiddlerCore4" = $"res\FiddlerCore4.dll";
@@ -43,10 +44,27 @@ UninstallCertificate = function(){
 	}
 	return true;
 }
+
+// 视频链接过滤规则
+var urls = {}
+filterUrl = function(url){
+	if(string.find(url,"^https\:\/\/finder<mp>*\.video\.qq\.com\/251\/20302\/") or string.find(url,"mpvideo\.qpic\.cn") ){
+	 	// 去除无用链接格式
+	 	if(!!string.match(url,"token=\w+")){
+	 		if(!urls[url]){
+	 			urls[url] = true
+	 			return true; 
+	 		}	
+	 	}
+	}
+	return false; 
+}
+
+
 AttachListening = function(){
 	 Fiddler.FiddlerApplication.BeforeRequest = function(s){
 	 	s.bBufferResponse = false;
-	 	if(string.find(s.fullUrl,"^https\:\/\/finder<mp>*\.video\.qq\.com\/251\/20302\/") or string.find(s.fullUrl,"mpvideo\.qpic\.cn") ){
+	 	if(filterUrl(s.fullUrl)){
 	 		mainForm.listview.addItem( {s.fullUrl} )
 	 	}
 	 }
@@ -84,12 +102,13 @@ mainForm.btnStop.oncommand = function(id,event){
 
 mainForm.btnClear.oncommand = function(id,event){
 	mainForm.listview.clear()
+	urls = {}
 }
 
 mainForm.btnDown.oncommand = function(id,event){
 	var index = mainForm.listview.selIndex
 	if(index>0){
-		var url = mainForm.listview.getItemText(index,1,1024)
+		var url = mainForm.listview.getItemText(index,1,10240)
 		mainForm.btnDown.text = "下载中"
 		mainForm.btnDown.disabled = true
 		thread.invokeAndWait(
@@ -111,6 +130,14 @@ mainForm.btnDown.oncommand = function(id,event){
 mainForm.onClose = function(hwnd,message,wParam,lParam){
    	//UninstallCertificate()
 	UninstallFiddler() 
+}
+
+mainForm.btnCopyUrl.oncommand = function(id,event){
+	var index = mainForm.listview.selIndex
+	if(index>0){
+		var url = mainForm.listview.getItemText(index,1,10240)
+		win.clip.write(url)
+	}
 }
 
 mainForm.show();
